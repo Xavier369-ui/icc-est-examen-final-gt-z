@@ -1,5 +1,7 @@
 package controllers;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,71 +15,73 @@ import java.util.TreeSet;
 import models.Maquina;
 
 public class MaquinaController {
-    // Método A
+    
+    // Método A: Filtrar máquinas con subred < umbral (manteniendo orden original)
     public Stack<Maquina> filtrarPorSubred(List<Maquina> maquinas, int umbral) {
-        Stack<Maquina> stack = new Stack<>();
-        for (Maquina m : maquinas) {
+        Stack<Maquina> resultado = new Stack<>();
+        // Recorremos en orden inverso para mantener el orden al sacar de la pila
+        for (int i = maquinas.size()-1; i >= 0; i--) {
+            Maquina m = maquinas.get(i);
             if (m.getSubred() < umbral) {
-                stack.push(m);
+                resultado.push(m);
             }
         }
-        return stack;
+        return resultado;
     }
 
-    // Método B
-    public Set<Maquina> ordenarPorSubred(Stack<Maquina> pila) {
-        TreeSet<Maquina> ordenadas = new TreeSet<>(new Comparator<Maquina>() {
-            @Override
-            public int compare(Maquina m1, Maquina m2) {
-                int comp = Integer.compare(m1.getSubred(), m2.getSubred());
-                if (comp != 0) return comp;
-                return m1.getNombre().compareTo(m2.getNombre());
-            }
-        });
-
-        for (Maquina m : pila) {
-            ordenadas.add(m);
+    // Método B: Ordenar por subred ASC y nombre ASC (eliminando duplicados)
+    public TreeSet<Maquina> ordenarPorSubred(Stack<Maquina> pila) {
+        TreeSet<Maquina> resultado = new TreeSet<>(
+            Comparator.comparingInt(Maquina::getSubred)
+                      .thenComparing(Maquina::getNombre)
+        );
+        
+        // Copiamos la pila para no modificar la original
+        Stack<Maquina> copiaPila = new Stack<>();
+        copiaPila.addAll(pila);
+        
+        while (!copiaPila.isEmpty()) {
+            resultado.add(copiaPila.pop());
         }
-        return ordenadas;
+        
+        return resultado;
     }
 
-    // Método C
-    public Map<Integer, Queue<Maquina>> agruparPorRiesgo(List<Maquina> maquinas) {
+    // Método C: Agrupar por riesgo (orden ASC)
+    public TreeMap<Integer, Queue<Maquina>> agruparPorRiesgo(List<Maquina> maquinas) {
         TreeMap<Integer, Queue<Maquina>> mapa = new TreeMap<>();
+        
         for (Maquina m : maquinas) {
             int riesgo = m.getRiesgo();
             mapa.putIfAbsent(riesgo, new LinkedList<>());
             mapa.get(riesgo).add(m);
         }
+        
         return mapa;
     }
 
-    // Método D
+    // Método D: Explotar grupo más grande (mayor riesgo en empate)
     public Stack<Maquina> explotarGrupo(Map<Integer, Queue<Maquina>> mapa) {
-        int maxCantidad = -1;
-        int riesgoMax = -1;
-        Queue<Maquina> grupoSeleccionado = null;
-
+        Map.Entry<Integer, Queue<Maquina>> mayorGrupo = null;
+        
         for (Map.Entry<Integer, Queue<Maquina>> entry : mapa.entrySet()) {
-            int cantidad = entry.getValue().size();
-            int riesgo = entry.getKey();
-
-            if (cantidad > maxCantidad || (cantidad == maxCantidad && riesgo > riesgoMax)) {
-                maxCantidad = cantidad;
-                riesgoMax = riesgo;
-                grupoSeleccionado = entry.getValue();
+            if (mayorGrupo == null || 
+                entry.getValue().size() > mayorGrupo.getValue().size() ||
+                (entry.getValue().size() == mayorGrupo.getValue().size() && 
+                 entry.getKey() > mayorGrupo.getKey())) {
+                mayorGrupo = entry;
             }
         }
-
+        
         Stack<Maquina> resultado = new Stack<>();
-        if (grupoSeleccionado != null) {
-            for (Maquina m : grupoSeleccionado) {
-                resultado.push(m);
-            }
+        if (mayorGrupo != null) {
+            // Convertir la cola a pila (orden LIFO)
+            Queue<Maquina> cola = mayorGrupo.getValue();
+            List<Maquina> temp = new ArrayList<>(cola);
+            Collections.reverse(temp);
+            resultado.addAll(temp);
         }
-
+        
         return resultado;
     }
-
-    
 }
